@@ -1,0 +1,261 @@
+---
+title: "Grossepieper_Nils_Assignment03"
+author: "Nils Grossepieper"
+date: "2023-03-27"
+output: html_document
+---
+
+```{r setup, include = F}
+options(scipen=999)
+```
+
+***
+
+### Repeated operations
+
+<div class="alert alert-block alert-info">
+1. Create two vectors called ``vec1`` and ``vec2`` that each contain 50,000 random draws from the integer numbers between 1 and 100. Make sure the "random" operation produces the same results when the code is re-evaluated.
+</div>
+
+```{r}
+
+# I use set.seed() to produce the same results when I rerun the code:
+set.seed(123)
+
+# Now I create two vectors with each containing of 50,000 random integers from
+# a range between 1 and 100
+vec1 <- sample.int(n = 100, size = 50000, replace = TRUE)
+vec2 <- sample.int(n = 100, size = 50000, replace = TRUE)
+
+# The vectors look like this:
+vec1[1:10]
+vec2[1:10]
+
+```
+
+<div class="alert alert-block alert-info">
+2. Consider the following ``for`` loop in R that subtracts the values of ``vec1`` and ``vec2`` from each other element-wise, squares the differences, and then takes the square root. The results are stored in the vector ``absoluteDifferences``.  
+    
+```{r for_loop_r}
+    
+# Initiate empty object to store maximum values per row:
+absoluteDifferences <- NULL
+    
+# Iterate through rows, find absolute difference, and append the value to the 
+# object 'absoluteDifferences':
+for (i in 1:length(vec1)){
+  absoluteDifferences <- c(absoluteDifferences, sqrt((vec1[i] - vec2[i])^2))
+  }
+    
+```
+    
+    This operation is not coded efficiently regarding several aspects. Implement **two different strategies** that speed up the operation. Explain the intuition behind these two strategies and why they lead to an efficiency gain. Track and document the gain in computation time for the different variants of the operation.
+</div>
+
+```{r}
+
+# I first track the time of the loop operation, to show how slow loop operators
+# compute tasks compared to using an apply function or vectorized functions.
+
+# Initiate empty object to store maximum values per row:
+absoluteDifferences <- NULL
+
+ptm1 <- proc.time()
+
+# Iterate through rows, find absolute difference, and append the value to the
+# object 'absoluteDifferences':
+
+for (i in 1:length(vec1)){
+  absoluteDifferences <- c(absoluteDifferences, sqrt((vec1[i] - vec2[i])^2))
+}
+print("loop approach time:")
+proc.time() - ptm1
+
+
+# 1.) My first approach is using a apply function:
+
+ptm2 <- proc.time()
+
+# I create a function, which will take the difference between each vec1 element 
+# and vec2 element, squares the difference and then take the root
+
+function_abs_diff <- function(data1, data2){
+  output <- sqrt((data1 - data2)^2)
+  return(output)
+}
+
+# I use mapply() to apply our two vectors vec1 and vec2 element wise to this
+# function
+
+apply_abs_diff <- mapply(FUN = function_abs_diff, vec1, vec2)
+print("apply approach time:")
+proc.time() - ptm2
+
+# This approach is technically like the loop approach, since you call a loop 
+# behind the scenes. Therefore the apply approach is only a bit faster than the 
+# loop approach (especially when you take a look at the vectorized approach).
+
+
+# 2.) Our second approach is using vectorized functions
+
+ptm3 <- proc.time()
+vec_abs_diff <- sqrt((vec1 - vec2)^2)
+print("vectorized approach time:")
+proc.time() - ptm3
+
+# The vectorized approach is the fastest of all three, since you take vectors vec1
+# and vec2 as input and returns a vector f(vec1, vec2) as output.
+
+
+# Approach one (apply function) and approach two (vectorized function) have the 
+# advantage, that R does not have to figure out the data type for each single 
+# element of the vectors. In the loop approach R has to figure out after each
+# repetition which type the certain element of the ith position and the ith run has.
+# On the other side for the vectorized approach R knows that a vector element
+# always has the same data type and therefore a lot of processing is saved in a
+# vectorized approach.
+
+```
+
+***
+
+### SQLite Database Management – Soccer Data
+
+The SQLite database ``soccer.sqlite`` (located in ``soccer.zip``) contains information about over 24,000 soccer matches in different countries and leagues, the competing teams, and the players that appeared in the respective matches. The data is stored in a relational format and information can be joined as as displayed in the instructions PDF.
+
+Execute the following lines of code in order to establish a connection to the database:
+
+```{r db_connection_r, warning=FALSE}
+
+# (Install and) load relevant packages here:
+library(DBI)
+library(RSQLite)
+
+# Establish connection to the SQLite database "soccer.sqlite":
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/gross/OneDrive/Dokumente/soccer/soccer.sqlite") 
+
+```
+
+<div class="alert alert-block alert-info">
+6. By performing adequate SQL queries, answer the following questions:
+a) What are the team IDs of *FC Bayern Munich* and *Borussia Dortmund*?
+</div>
+
+
+```{r}
+
+team_id_Bayern <- dbGetQuery(con, "
+                    SELECT id
+                    FROM Team
+                    WHERE team_long_name = 'FC Bayern Munich'")
+team_id_Bayern
+
+team_id_Dortmund <- dbGetQuery(con, "
+                    SELECT id
+                    FROM Team
+                    WHERE team_long_name = 'Borussia Dortmund'")
+team_id_Dortmund
+
+```
+
+<div class="alert alert-block alert-info">
+b) What is the match ID of the match between *FC Bayern Munich* (home team) and *Borussia Dortmund* (away team) in the season of 2015/2016?
+</div>
+
+```{r}
+
+match_id_FCB_BVB_15_16 <- dbGetQuery(con, "
+                   SELECT id AS Match_id
+                   FROM Match
+                   WHERE home_team_id = '9823'
+                   AND away_team_id = '9789'
+                   AND season = '2015/2016'
+                   ")
+match_id_FCB_BVB_15_16
+
+```
+
+<div class="alert alert-block alert-info">
+c) When, i.e., on which date, did the match between *FC Bayern Munich* and *Borussia Dortmund* in the season 2015/2016 (``id`` identified in b) take place?
+</div>
+
+```{r}
+
+date_FCB_BVB_15_16 <- dbGetQuery(con, "
+                                 SELECT date
+                                 FROM Match
+                                 WHERE id = '2002155'
+                                 ")
+date_FCB_BVB_15_16
+
+```
+
+<div class="alert alert-block alert-info">
+d) What were the names of the players who appeared in this match for *FC Bayern Munich* (i.e., the home team players)?
+</div>
+
+```{r}
+
+player_names <- dbGetQuery(con, "
+                           SELECT player_name FROM Player
+                           INNER JOIN Match ON Player.id IN (Match.home_player_1,
+                           Match.home_player_2,
+                           Match.home_player_3,
+                           Match.home_player_4,
+                           Match.home_player_5,
+                           Match.home_player_6,
+                           Match.home_player_7,
+                           Match.home_player_8,
+                           Match.home_player_9,
+                           Match.home_player_10,
+                           Match.home_player_11)
+                           WHERE Match.id == '2002155'
+                           ")
+player_names
+
+```
+
+<div class="alert alert-block alert-info">
+e) What is the average ``height`` and ``weight`` of the players identified in d)?
+</div>
+
+```{r}
+
+player_height_weight <- dbGetQuery(con, "
+                           SELECT AVG(height), AVG(weight)
+                           FROM Player
+                           INNER JOIN Match ON Player.id IN (Match.home_player_1,
+                           Match.home_player_2,
+                           Match.home_player_3,
+                           Match.home_player_4,
+                           Match.home_player_5,
+                           Match.home_player_6,
+                           Match.home_player_7,
+                           Match.home_player_8,
+                           Match.home_player_9,
+                           Match.home_player_10,
+                           Match.home_player_11)
+                           WHERE Match.id == '2002155'
+                           ")
+player_height_weight
+
+```
+
+<div class="alert alert-block alert-info">
+f) How many different leagues (``league_id``) are represented in the table ``Match``?
+</div>
+
+```{r}
+
+unique_leagues <- dbGetQuery(con, "
+                             SELECT COUNT(DISTINCT league_id) AS
+                             Number_of_different_leagues
+                             FROM Match
+                             ")
+unique_leagues
+
+
+# Disconnect at the end
+dbDisconnect(con)
+
+```
